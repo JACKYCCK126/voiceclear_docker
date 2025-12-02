@@ -1,5 +1,9 @@
-# Backend Dockerfile for Flask API with PyTorch
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+# ============================
+# Backend Dockerfile for DGX Spark (ARM64)
+# ============================
+
+# Use NVIDIA ARM64 PyTorch base image
+FROM nvcr.io/nvidia/pytorch:24.02-py3
 
 # Set working directory
 WORKDIR /app
@@ -10,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first (cache optimization)
 COPY requirements.txt .
 
 # Install Python dependencies
@@ -20,27 +24,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY flask_backend.py .
 COPY start_backend.py .
 
-# Copy src module if it exists in parent directory
-# Note: Adjust this path based on your actual project structure
-# If src is in parent directory, use: COPY ../src /app/src
-# For now, we'll mount it as a volume in docker-compose.yml
-
 # Create directories for uploads and results
 RUN mkdir -p flask_uploads flask_results
 
-# Set environment variables
+# Environment variables
 ENV MODEL_PATH=/app/models/Third_200.pt
 ENV FLASK_APP=flask_backend.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Expose port
+# Expose backend port
 EXPOSE 5000
 
-# Health check
+# Health check for Flask API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:5000/api/health', timeout=5)" || exit 1
 
-# Run the application
+# Start backend server
 CMD ["python", "flask_backend.py"]
-
