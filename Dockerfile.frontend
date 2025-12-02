@@ -1,47 +1,49 @@
-# Frontend Dockerfile for React + Vite + Express
-FROM node:18-alpine AS builder
+# ============================
+# 1) Build Stage
+# ============================
+FROM node:18-bullseye AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY VoiceCleanse/VoiceCleanse/package*.json ./
+COPY VoiceCleanse/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
-# Copy source code
-COPY VoiceCleanse/VoiceCleanse/client ./client
-COPY VoiceCleanse/VoiceCleanse/server ./server
-COPY VoiceCleanse/VoiceCleanse/shared ./shared
-COPY VoiceCleanse/VoiceCleanse/vite.config.ts .
-COPY VoiceCleanse/VoiceCleanse/tsconfig.json .
-COPY VoiceCleanse/VoiceCleanse/tailwind.config.ts .
-COPY VoiceCleanse/VoiceCleanse/postcss.config.js .
-COPY VoiceCleanse/VoiceCleanse/components.json .
+# Copy frontend source code
+COPY VoiceCleanse/client ./client
+COPY VoiceCleanse/server ./server
+COPY VoiceCleanse/shared ./shared
+COPY VoiceCleanse/vite.config.ts .
+COPY VoiceCleanse/tsconfig.json .
+COPY VoiceCleanse/tailwind.config.ts .
+COPY VoiceCleanse/postcss.config.js .
+COPY VoiceCleanse/components.json .
 
-# Build the application
+# Build frontend (Vite)
 RUN npm run build
 
-# Production stage
-FROM node:18-alpine
+
+# ============================
+# 2) Production Runtime
+# ============================
+FROM node:18-bullseye
 
 WORKDIR /app
 
 # Copy package files
-COPY VoiceCleanse/VoiceCleanse/package*.json ./
+COPY VoiceCleanse/package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install only production dependencies
+RUN npm install --production
 
-# Copy built files from builder
+# Copy built files & runtime code
 COPY --from=builder /app/dist ./dist
-
-# Copy server and shared files from builder
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/shared ./shared
 
-# Set environment variables
+# Environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV BACKEND_URL=http://backend:5000
@@ -49,10 +51,9 @@ ENV BACKEND_URL=http://backend:5000
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (r)=>process.exit(r.statusCode===200?0:1))" || exit 1
 
-# Start the server
+# Start server
 CMD ["node", "dist/index.js"]
-
