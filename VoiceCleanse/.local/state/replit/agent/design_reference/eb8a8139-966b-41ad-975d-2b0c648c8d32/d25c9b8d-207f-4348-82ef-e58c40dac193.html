@@ -1,0 +1,1016 @@
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI語音分離工具 - 專業音頻處理</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    ring: "var(--ring)",
+                }
+            }
+        }
+    };
+    </script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --radius: 0.5rem;
+            --background: hsl(0 0% 100%);
+            --foreground: hsl(222 16% 13%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222 16% 13%);
+            --primary: hsl(210 83% 53%);
+            --primary-foreground: hsl(0 0% 98%);
+            --secondary: hsl(174 100% 29%);
+            --secondary-foreground: hsl(0 0% 98%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215 16% 47%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222 16% 13%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(0 0% 98%);
+            --border: hsl(214 32% 91%);
+            --ring: hsl(210 83% 53%);
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .drop-zone {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .drop-zone.dragover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .progress-fill {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+        }
+        
+        .audio-player {
+            background: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--accent)) 100%);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-background text-foreground">
+    <!-- @COMPONENT: Header -->
+    <header class="bg-card border-b border-border shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+                        <i class="fas fa-magic text-primary-foreground text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-foreground">AI語音分離工具</h1>
+                        <p class="text-muted-foreground">專業音頻處理 - 提升音質，分離人聲</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="hidden sm:flex items-center space-x-2 text-sm text-muted-foreground">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span id="connectionStatus">服務連線中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: Header -->
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- @COMPONENT: UploadSection -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Upload Area -->
+            <div class="lg:col-span-2">
+                <div class="bg-card rounded-lg border border-border shadow-sm p-6">
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-upload text-primary"></i>
+                        <h2 class="text-xl font-semibold text-foreground">音頻文件上傳</h2>
+                    </div>
+                    
+                    <div id="uploadArea" class="drop-zone border-2 border-dashed border-border hover:border-primary/50 rounded-lg p-8 text-center cursor-pointer transition-colors">
+                        <div class="flex flex-col items-center space-y-4">
+                            <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                                <i class="fas fa-cloud-upload-alt text-2xl text-muted-foreground"></i>
+                            </div>
+                            <div>
+                                <p class="text-lg font-medium text-foreground">點擊選擇音頻文件</p>
+                                <p class="text-sm text-muted-foreground">或直接拖拽文件到此區域</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <span class="px-2 py-1 bg-muted rounded-full text-xs font-mono text-muted-foreground">WAV</span>
+                                <span class="px-2 py-1 bg-muted rounded-full text-xs font-mono text-muted-foreground">MP3</span>
+                                <span class="px-2 py-1 bg-muted rounded-full text-xs font-mono text-muted-foreground">FLAC</span>
+                                <span class="px-2 py-1 bg-muted rounded-full text-xs font-mono text-muted-foreground">OGG</span>
+                                <span class="px-2 py-1 bg-muted rounded-full text-xs font-mono text-muted-foreground">M4A</span>
+                            </div>
+                            <p class="text-xs text-muted-foreground">最大文件大小: 50MB</p>
+                        </div>
+                    </div>
+                    
+                    <input type="file" id="audioFileInput" accept=".wav,.mp3,.flac,.ogg,.m4a" class="hidden">
+                    
+                    <!-- Selected File Display -->
+                    <div id="selectedFileInfo" class="hidden mt-4 p-4 bg-muted rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-file-audio text-secondary"></i>
+                                <div>
+                                    <p class="font-medium text-foreground" id="fileName">filename.wav</p>
+                                    <p class="text-sm text-muted-foreground" id="fileSize">2.4 MB</p>
+                                </div>
+                            </div>
+                            <button id="removeFileBtn" class="text-destructive hover:bg-destructive/10 p-2 rounded-full transition-colors">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Processing Controls -->
+                    <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                        <button id="processBtn" class="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-play-circle mr-2"></i>
+                            開始處理
+                        </button>
+                        <button id="resetBtn" class="sm:w-auto bg-muted hover:bg-accent text-accent-foreground font-medium py-3 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-redo mr-2"></i>
+                            重置
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Info Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-card rounded-lg border border-border shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-foreground mb-4">
+                        <i class="fas fa-info-circle text-primary mr-2"></i>
+                        使用說明
+                    </h3>
+                    
+                    <div class="space-y-4 text-sm text-muted-foreground">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="text-primary text-xs font-bold">1</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-foreground">選擇音頻文件</p>
+                                <p>支援WAV、MP3、FLAC等格式</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-3">
+                            <div class="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="text-primary text-xs font-bold">2</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-foreground">AI智能處理</p>
+                                <p>自動分離和增強語音信號</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-3">
+                            <div class="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="text-primary text-xs font-bold">3</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-foreground">下載結果</p>
+                                <p>獲得高質量的分離音頻</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 p-4 bg-muted rounded-lg">
+                        <h4 class="font-medium text-foreground mb-2">
+                            <i class="fas fa-chart-line text-secondary mr-2"></i>
+                            SI-SNR改善指標
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between">
+                                <span>0-3dB</span>
+                                <span class="text-muted-foreground">輕微改善</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>3-8dB</span>
+                                <span class="text-amber-600">明顯改善</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>8-15dB</span>
+                                <span class="text-green-600">顯著改善</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>&gt;15dB</span>
+                                <span class="text-emerald-600 font-medium">極佳效果</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: UploadSection -->
+
+        <!-- @COMPONENT: ProcessingSection -->
+        <div id="processingSection" class="hidden mt-8">
+            <div class="bg-card rounded-lg border border-border shadow-sm p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold text-foreground">
+                        <i class="fas fa-cogs text-secondary mr-2"></i>
+                        處理進度
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <div id="processingSpinner" class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span id="processingStatus" class="text-sm font-medium text-muted-foreground">處理中...</span>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-foreground">處理進度</span>
+                        <span id="progressPercentage" class="text-sm font-bold text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-muted rounded-full h-3 overflow-hidden">
+                        <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-primary to-secondary rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Processing Info -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="text-center p-3 bg-muted rounded-lg">
+                        <div class="text-2xl text-primary mb-1">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <p class="text-xs text-muted-foreground">已處理時間</p>
+                        <p id="elapsedTime" class="text-lg font-bold text-foreground">0s</p>
+                    </div>
+                    
+                    <div class="text-center p-3 bg-muted rounded-lg">
+                        <div class="text-2xl text-secondary mb-1">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <p class="text-xs text-muted-foreground">預估剩餘</p>
+                        <p id="estimatedTime" class="text-lg font-bold text-foreground">--</p>
+                    </div>
+                    
+                    <div class="text-center p-3 bg-muted rounded-lg">
+                        <div class="text-2xl text-emerald-600 mb-1">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <p class="text-xs text-muted-foreground">處理速度</p>
+                        <p id="processingSpeed" class="text-lg font-bold text-foreground">--</p>
+                    </div>
+                </div>
+                
+                <!-- Current Status Message -->
+                <div class="mt-4 p-4 bg-accent rounded-lg">
+                    <p id="statusMessage" class="text-sm text-accent-foreground">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        正在初始化AI模型...
+                    </p>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: ProcessingSection -->
+
+        <!-- @COMPONENT: ResultsSection -->
+        <div id="resultsSection" class="hidden mt-8">
+            <div class="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                <div class="bg-gradient-to-r from-primary to-secondary p-6 text-primary-foreground">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-bold">處理完成！</h3>
+                            <p class="text-primary-foreground/80">您的音頻已成功處理</p>
+                        </div>
+                        <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                            <i class="fas fa-check text-2xl"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="metric-card text-primary-foreground p-4 rounded-lg text-center">
+                            <div class="text-3xl font-bold" id="siSnrImprovement">+8.5</div>
+                            <div class="text-sm opacity-90">SI-SNR改善 (dB)</div>
+                        </div>
+                        
+                        <div class="bg-muted p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-foreground" id="audioDuration">6.2</div>
+                            <div class="text-sm text-muted-foreground">音頻長度 (秒)</div>
+                        </div>
+                        
+                        <div class="bg-muted p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-foreground" id="processingTime">0.85</div>
+                            <div class="text-sm text-muted-foreground">處理時間 (秒)</div>
+                        </div>
+                        
+                        <div class="bg-muted p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-emerald-600" id="speedMultiplier">730x</div>
+                            <div class="text-sm text-muted-foreground">實時倍數</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Audio Players -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <!-- Original Audio -->
+                        <div class="audio-player p-4 rounded-lg">
+                            <h4 class="font-semibold text-foreground mb-3 flex items-center">
+                                <i class="fas fa-file-audio text-muted-foreground mr-2"></i>
+                                原始音頻
+                            </h4>
+                            <div id="originalAudioContainer" class="space-y-2">
+                                <audio controls class="w-full" data-mock="true">
+                                    <!-- TODO: Load original audio file -->
+                                </audio>
+                                <p class="text-xs text-muted-foreground">
+                                    <i class="fas fa-volume-down mr-1"></i>
+                                    背景噪音較多，人聲不清晰
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Processed Audio -->
+                        <div class="audio-player p-4 rounded-lg">
+                            <h4 class="font-semibold text-foreground mb-3 flex items-center">
+                                <i class="fas fa-magic text-secondary mr-2"></i>
+                                處理後音頻
+                            </h4>
+                            <div id="processedAudioContainer" class="space-y-2">
+                                <audio controls class="w-full" data-mock="true">
+                                    <!-- TODO: Load processed audio file -->
+                                </audio>
+                                <p class="text-xs text-emerald-600">
+                                    <i class="fas fa-volume-up mr-1"></i>
+                                    人聲清晰，背景噪音顯著降低
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button id="downloadBtn" class="flex-1 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium py-3 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-download mr-2"></i>
+                            下載處理結果
+                        </button>
+                        
+                        <button id="shareBtn" class="sm:w-auto bg-muted hover:bg-accent text-accent-foreground font-medium py-3 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-share-alt mr-2"></i>
+                            分享結果
+                        </button>
+                        
+                        <button id="newProcessBtn" class="sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-plus mr-2"></i>
+                            處理新文件
+                        </button>
+                    </div>
+                    
+                    <!-- Quality Assessment -->
+                    <div class="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <i class="fas fa-award text-emerald-600"></i>
+                            <h4 class="font-semibold text-emerald-800">音質評估</h4>
+                        </div>
+                        <p id="qualityAssessment" class="text-sm text-emerald-700">
+                            根據SI-SNR改善指標，您的音頻獲得了 <strong>顯著改善</strong> 的音質提升。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: ResultsSection -->
+
+        <!-- @COMPONENT: ErrorSection -->
+        <div id="errorSection" class="hidden mt-8">
+            <div class="bg-card border border-destructive/20 rounded-lg p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-destructive"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-destructive">處理失敗</h3>
+                        <p class="text-sm text-muted-foreground">抱歉，處理過程中發生了錯誤</p>
+                    </div>
+                </div>
+                
+                <div class="bg-destructive/5 border border-destructive/20 rounded-lg p-4 mb-4">
+                    <p id="errorMessage" class="text-sm text-destructive font-mono">
+                        <!-- Error message will be displayed here -->
+                    </p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button id="retryBtn" class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-redo mr-2"></i>
+                        重新嘗試
+                    </button>
+                    <button id="backToUploadBtn" class="bg-muted hover:bg-accent text-accent-foreground font-medium py-2 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        返回上傳
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: ErrorSection -->
+    </main>
+
+    <!-- @COMPONENT: Footer -->
+    <footer class="bg-card border-t border-border mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h4 class="font-semibold text-foreground mb-3">技術規格</h4>
+                    <ul class="space-y-1 text-sm text-muted-foreground">
+                        <li>• 基於深度學習的語音分離模型</li>
+                        <li>• 支援多種音頻格式</li>
+                        <li>• 即時處理和品質評估</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-foreground mb-3">支援格式</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 bg-muted rounded text-xs font-mono">WAV</span>
+                        <span class="px-2 py-1 bg-muted rounded text-xs font-mono">MP3</span>
+                        <span class="px-2 py-1 bg-muted rounded text-xs font-mono">FLAC</span>
+                        <span class="px-2 py-1 bg-muted rounded text-xs font-mono">OGG</span>
+                        <span class="px-2 py-1 bg-muted rounded text-xs font-mono">M4A</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-foreground mb-3">系統狀態</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-muted-foreground">API服務正常</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span class="text-muted-foreground">GPU加速可用</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-border mt-8 pt-6 text-center text-sm text-muted-foreground">
+                <p>&copy; 2024 AI語音分離工具. 採用先進的深度學習技術，提供專業級音頻處理服務。</p>
+            </div>
+        </div>
+    </footer>
+    <!-- @END_COMPONENT: Footer -->
+
+    <script>
+        // Audio Separation API Implementation
+        class AudioSeparationAPI {
+            constructor(baseURL = 'https://d5c4ba628261.ngrok-free.app') {
+                this.baseURL = baseURL;
+                this.currentTaskId = null;
+                this.pollingInterval = null;
+            }
+
+            async checkHealth() {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/health`);
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.error('Health check failed:', error);
+                    return { status: 'error', error: error.message };
+                }
+            }
+
+            async uploadAudio(audioFile, onProgress = null) {
+                try {
+                    const formData = new FormData();
+                    formData.append('audio_file', audioFile);
+
+                    const response = await fetch(`${this.baseURL}/api/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || '上傳失敗');
+                    }
+
+                    const data = await response.json();
+                    this.currentTaskId = data.task_id;
+                    
+                    return data;
+                } catch (error) {
+                    console.error('Upload failed:', error);
+                    throw error;
+                }
+            }
+
+            async getTaskStatus(taskId) {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/status/${taskId}`);
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || '查詢失敗');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    console.error('Status check failed:', error);
+                    throw error;
+                }
+            }
+
+            async downloadResult(taskId) {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/download/${taskId}`);
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || '下載失敗');
+                    }
+
+                    const blob = await response.blob();
+                    const filename = this.getFilenameFromResponse(response) || 'separated_audio.wav';
+                    
+                    return { blob, filename };
+                } catch (error) {
+                    console.error('Download failed:', error);
+                    throw error;
+                }
+            }
+
+            getFilenameFromResponse(response) {
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        return matches[1].replace(/['"]/g, '');
+                    }
+                }
+                return null;
+            }
+
+            startPolling(taskId, onUpdate, onComplete, onError) {
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                }
+
+                this.pollingInterval = setInterval(async () => {
+                    try {
+                        const status = await this.getTaskStatus(taskId);
+                        
+                        if (onUpdate) {
+                            onUpdate(status);
+                        }
+
+                        if (status.status === 'completed') {
+                            this.stopPolling();
+                            if (onComplete) {
+                                onComplete(status);
+                            }
+                        } else if (status.status === 'failed') {
+                            this.stopPolling();
+                            if (onError) {
+                                onError(new Error(status.error || '處理失敗'));
+                            }
+                        }
+                    } catch (error) {
+                        this.stopPolling();
+                        if (onError) {
+                            onError(error);
+                        }
+                    }
+                }, 2000);
+            }
+
+            stopPolling() {
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                    this.pollingInterval = null;
+                }
+            }
+
+            createAudioPlayer(blob, container) {
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = document.createElement('audio');
+                audio.src = audioUrl;
+                audio.controls = true;
+                audio.className = 'w-full';
+                
+                if (container) {
+                    container.innerHTML = '';
+                    container.appendChild(audio);
+                }
+                
+                return audio;
+            }
+
+            downloadFile(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // Application State and Logic
+        (() => {
+            const api = new AudioSeparationAPI('https://d5c4ba628261.ngrok-free.app');
+            let currentTaskId = null;
+            let selectedFile = null;
+            let startTime = null;
+
+            // DOM Elements
+            const elements = {
+                // Upload Section
+                uploadArea: document.getElementById('uploadArea'),
+                fileInput: document.getElementById('audioFileInput'),
+                selectedFileInfo: document.getElementById('selectedFileInfo'),
+                fileName: document.getElementById('fileName'),
+                fileSize: document.getElementById('fileSize'),
+                removeFileBtn: document.getElementById('removeFileBtn'),
+                processBtn: document.getElementById('processBtn'),
+                resetBtn: document.getElementById('resetBtn'),
+                
+                // Processing Section
+                processingSection: document.getElementById('processingSection'),
+                progressBar: document.getElementById('progressBar'),
+                progressPercentage: document.getElementById('progressPercentage'),
+                processingStatus: document.getElementById('processingStatus'),
+                elapsedTime: document.getElementById('elapsedTime'),
+                estimatedTime: document.getElementById('estimatedTime'),
+                processingSpeed: document.getElementById('processingSpeed'),
+                statusMessage: document.getElementById('statusMessage'),
+                
+                // Results Section
+                resultsSection: document.getElementById('resultsSection'),
+                siSnrImprovement: document.getElementById('siSnrImprovement'),
+                audioDuration: document.getElementById('audioDuration'),
+                processingTime: document.getElementById('processingTime'),
+                speedMultiplier: document.getElementById('speedMultiplier'),
+                downloadBtn: document.getElementById('downloadBtn'),
+                newProcessBtn: document.getElementById('newProcessBtn'),
+                originalAudioContainer: document.getElementById('originalAudioContainer'),
+                processedAudioContainer: document.getElementById('processedAudioContainer'),
+                
+                // Error Section
+                errorSection: document.getElementById('errorSection'),
+                errorMessage: document.getElementById('errorMessage'),
+                retryBtn: document.getElementById('retryBtn'),
+                backToUploadBtn: document.getElementById('backToUploadBtn'),
+                
+                // Header
+                connectionStatus: document.getElementById('connectionStatus')
+            };
+
+            // Initialize Application
+            async function initApp() {
+                await checkBackendConnection();
+                setupEventListeners();
+                setupDragAndDrop();
+            }
+
+            // Check Backend Connection
+            async function checkBackendConnection() {
+                try {
+                    const health = await api.checkHealth();
+                    if (health.status === 'ok') {
+                        elements.connectionStatus.innerHTML = '<i class="fas fa-check-circle mr-1"></i>服務就緒';
+                        elements.connectionStatus.className = 'flex items-center text-green-600';
+                    } else {
+                        throw new Error('Service not ready');
+                    }
+                } catch (error) {
+                    elements.connectionStatus.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>連線失敗';
+                    elements.connectionStatus.className = 'flex items-center text-destructive';
+                }
+            }
+
+            // Setup Event Listeners
+            function setupEventListeners() {
+                elements.uploadArea.addEventListener('click', () => elements.fileInput.click());
+                elements.fileInput.addEventListener('change', handleFileSelect);
+                elements.removeFileBtn.addEventListener('click', clearSelectedFile);
+                elements.processBtn.addEventListener('click', startProcessing);
+                elements.resetBtn.addEventListener('click', resetApplication);
+                elements.downloadBtn.addEventListener('click', downloadResult);
+                elements.newProcessBtn.addEventListener('click', resetApplication);
+                elements.retryBtn.addEventListener('click', startProcessing);
+                elements.backToUploadBtn.addEventListener('click', resetApplication);
+            }
+
+            // Setup Drag and Drop
+            function setupDragAndDrop() {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    elements.uploadArea.addEventListener(eventName, preventDefaults, false);
+                });
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    elements.uploadArea.addEventListener(eventName, () => {
+                        elements.uploadArea.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    elements.uploadArea.addEventListener(eventName, () => {
+                        elements.uploadArea.classList.remove('dragover');
+                    }, false);
+                });
+
+                elements.uploadArea.addEventListener('drop', handleDrop, false);
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    handleFileSelect({ target: { files } });
+                }
+            }
+
+            // File Selection Handler
+            function handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Validate file
+                const maxSize = 50 * 1024 * 1024; // 50MB
+                const allowedTypes = ['audio/wav', 'audio/mpeg', 'audio/flac', 'audio/ogg', 'audio/mp4'];
+                
+                if (file.size > maxSize) {
+                    showError('文件過大，請選擇小於50MB的文件');
+                    return;
+                }
+
+                selectedFile = file;
+                updateFileDisplay(file);
+            }
+
+            function updateFileDisplay(file) {
+                elements.fileName.textContent = file.name;
+                elements.fileSize.textContent = formatFileSize(file.size);
+                elements.selectedFileInfo.classList.remove('hidden');
+                elements.processBtn.disabled = false;
+            }
+
+            function clearSelectedFile() {
+                selectedFile = null;
+                elements.selectedFileInfo.classList.add('hidden');
+                elements.fileInput.value = '';
+                elements.processBtn.disabled = true;
+            }
+
+            // Processing Functions
+            async function startProcessing() {
+                if (!selectedFile) return;
+
+                try {
+                    // Check backend health first
+                    const health = await api.checkHealth();
+                    if (health.status !== 'ok') {
+                        showError('後端服務不可用，請稍後再試');
+                        return;
+                    }
+
+                    // Show processing section
+                    showSection('processing');
+                    elements.processBtn.disabled = true;
+                    startTime = Date.now();
+
+                    // Upload file
+                    elements.statusMessage.innerHTML = '<i class="fas fa-upload mr-2"></i>正在上傳文件...';
+                    const uploadResult = await api.uploadAudio(selectedFile);
+                    currentTaskId = uploadResult.task_id;
+
+                    // Start polling
+                    api.startPolling(
+                        currentTaskId,
+                        onProgressUpdate,
+                        onProcessingComplete,
+                        onProcessingError
+                    );
+
+                } catch (error) {
+                    showError(error.message);
+                }
+            }
+
+            function onProgressUpdate(status) {
+                const progress = status.progress || 0;
+                elements.progressBar.style.width = `${progress}%`;
+                elements.progressPercentage.textContent = `${progress}%`;
+                
+                // Update elapsed time
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                elements.elapsedTime.textContent = `${elapsed}s`;
+                
+                // Update estimated time
+                if (status.estimated_time) {
+                    elements.estimatedTime.textContent = `${status.estimated_time}s`;
+                }
+                
+                // Update status message
+                elements.statusMessage.innerHTML = `<i class="fas fa-cogs mr-2"></i>${status.message || '處理中...'}`;
+                
+                // Update processing speed if available
+                if (progress > 0 && elapsed > 0) {
+                    const speed = Math.round(progress / elapsed);
+                    elements.processingSpeed.textContent = `${speed}%/s`;
+                }
+            }
+
+            async function onProcessingComplete(result) {
+                showSection('results');
+                
+                // Update metrics
+                elements.siSnrImprovement.textContent = `+${result.si_snr_improvement}`;
+                elements.audioDuration.textContent = result.audio_duration;
+                elements.processingTime.textContent = result.processing_time;
+                
+                // Calculate real-time multiplier
+                const multiplier = Math.round(result.audio_duration / result.processing_time);
+                elements.speedMultiplier.textContent = `${multiplier}x`;
+                
+                // Update quality assessment
+                updateQualityAssessment(result.si_snr_improvement);
+                
+                // TODO: Load original and processed audio files
+                // This would require additional API endpoints or handling
+            }
+
+            function onProcessingError(error) {
+                showError(error.message);
+            }
+
+            async function downloadResult() {
+                if (!currentTaskId) return;
+
+                try {
+                    const { blob, filename } = await api.downloadResult(currentTaskId);
+                    
+                    // Create audio player for processed audio
+                    api.createAudioPlayer(blob, elements.processedAudioContainer);
+                    
+                    // Download file
+                    api.downloadFile(blob, filename);
+                    
+                } catch (error) {
+                    showError(`下載失敗: ${error.message}`);
+                }
+            }
+
+            // UI State Management
+            function showSection(section) {
+                // Hide all sections
+                elements.processingSection.classList.add('hidden');
+                elements.resultsSection.classList.add('hidden');
+                elements.errorSection.classList.add('hidden');
+                
+                // Show requested section
+                switch (section) {
+                    case 'processing':
+                        elements.processingSection.classList.remove('hidden');
+                        break;
+                    case 'results':
+                        elements.resultsSection.classList.remove('hidden');
+                        break;
+                    case 'error':
+                        elements.errorSection.classList.remove('hidden');
+                        break;
+                }
+            }
+
+            function showError(message) {
+                elements.errorMessage.textContent = message;
+                showSection('error');
+                elements.processBtn.disabled = false;
+            }
+
+            function resetApplication() {
+                api.stopPolling();
+                currentTaskId = null;
+                selectedFile = null;
+                startTime = null;
+                
+                // Reset UI
+                clearSelectedFile();
+                elements.progressBar.style.width = '0%';
+                elements.progressPercentage.textContent = '0%';
+                
+                // Hide all sections
+                showSection(null);
+            }
+
+            function updateQualityAssessment(improvement) {
+                const assessment = document.getElementById('qualityAssessment');
+                let level = '';
+                
+                if (improvement < 3) {
+                    level = '輕微改善';
+                } else if (improvement < 8) {
+                    level = '明顯改善';
+                } else if (improvement < 15) {
+                    level = '顯著改善';
+                } else {
+                    level = '極佳效果';
+                }
+                
+                assessment.innerHTML = `根據SI-SNR改善指標，您的音頻獲得了 <strong>${level}</strong> 的音質提升。`;
+            }
+
+            // Utility Functions
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Initialize on DOM content loaded
+            document.addEventListener('DOMContentLoaded', initApp);
+        })();
+    </script>
+</body>
+</html>
